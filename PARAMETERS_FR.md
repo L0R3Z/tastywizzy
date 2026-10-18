@@ -1,6 +1,6 @@
 # Paramètres de config.json
 
-Référence de chaque réglage. Ce fichier sert de source pour les infobulles de l'interface (V2).
+Référence de chaque réglage. Ce fichier sert de source pour les infobulles de l'interface (V2). Version anglaise : [PARAMETERS.md](PARAMETERS.md).
 
 **Format de chaque entrée** (pensé pour être lu par un script) :
 - le titre `### clé` est la clé exacte de `config.json` ;

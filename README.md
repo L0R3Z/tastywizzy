@@ -22,7 +22,7 @@ A Windows app (console or notification-area icon, also packaged as a single `.ex
 - **Restores the bulbs cleanly** when the console is closed, on Ctrl+C/Break, logoff or shutdown.
 - **Tray icon** showing the current colour, with pause/resume, log, config, *Start with Windows* and quit.
 
-All settings are documented in [PARAMETRES.md](PARAMETRES.md).
+All settings are documented in [PARAMETERS.md](PARAMETERS.md) (French version: [PARAMETRES.md](PARAMETRES.md)).
 
 ## Usage
 
