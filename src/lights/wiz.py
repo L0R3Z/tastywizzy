@@ -1,7 +1,10 @@
 import json
+import logging
 import socket
 import threading
 import time
+
+log = logging.getLogger(__name__)
 
 PORT = 38899
 MAX_MISSES = 3  # échecs consécutifs avant de considérer une ampoule perdue
@@ -91,6 +94,7 @@ class Wiz:
         self.stop = stop or threading.Event()
         self._wake = threading.Event()  # réveille la recherche avant la fin du délai
         self._thread = None
+        self._send_lock = threading.Lock()  # boucle principale et veille (fenêtre session) envoient en parallèle
 
     def reconfigure(self, bulbs, retry_s):
         """Applique une config rechargée à chaud (ampoules ajoutées / modifiées / retirées, délai de recherche)."""
@@ -113,7 +117,8 @@ class Wiz:
         self._wake.set()
 
     def _send(self, bulb, method, params):
-        self.sock.sendto(json.dumps({"method": method, "params": params}).encode(), (bulb.ip, PORT))
+        with self._send_lock:
+            self.sock.sendto(json.dumps({"method": method, "params": params}).encode(), (bulb.ip, PORT))
 
     def _locate_all(self, bulbs, sock):
         """Vérifie chaque ampoule à son IP, puis cherche les absentes sur le réseau local
@@ -142,7 +147,7 @@ class Wiz:
                     adopted = not b.mac
                     b.ip, changed = ip, True
                     b.mac = b.mac or next(m for m, i in by_mac.items() if i == ip)
-                    print(f"{b.name} {'attribuée à l ampoule' if adopted else 'retrouvée'} {b.mac} : {ip}")
+                    log.info("%s %s %s : %s", b.name, "attribuée à l ampoule" if adopted else "retrouvée", b.mac, ip)
                     claimed |= {b.mac, ip}
                     found.add(b)
         if changed:
@@ -154,7 +159,7 @@ class Wiz:
             try:
                 self.on_change({b.name: {"ip": b.ip, "mac": b.mac} for b in self.bulbs})
             except Exception as e:
-                print("Impossible de mettre à jour config.json :", e)
+                log.warning("Impossible de mettre à jour config.json : %s", e)
 
     def _save_states(self, bulbs, sock):
         bulbs = [b for b in bulbs if b.saved is None]  # ne pas écraser l'état d'origine par une couleur ambilight
@@ -169,7 +174,7 @@ class Wiz:
         for b in self.bulbs:
             b.online = b in found
             if not b.online:
-                print(f"Attention : {b.name} injoignable, nouvel essai toutes les {self.retry_s} s.")
+                log.warning("%s injoignable, nouvel essai toutes les %s s.", b.name, self.retry_s)
         self.sock.settimeout(None)
         self._thread = threading.Thread(target=self._retry_loop, daemon=True)
         self._thread.start()
@@ -184,7 +189,7 @@ class Wiz:
                 try:
                     self._check(sock)
                 except Exception as e:  # la recherche doit survivre à toute erreur ponctuelle
-                    print("Erreur pendant la recherche des ampoules :", e)
+                    log.warning("Erreur pendant la recherche des ampoules : %s", e)
 
     def _check(self, sock):
         bulbs = self.bulbs
@@ -193,13 +198,13 @@ class Wiz:
         for b in bulbs:
             if b in found:
                 if not b.online:
-                    print(f"{b.name} de nouveau joignable ({b.ip}).")
+                    log.info("%s de nouveau joignable (%s).", b.name, b.ip)
                 b.online, b.misses = True, 0
             elif b.online:
                 b.misses += 1  # UDP : un paquet perdu ne suffit pas à déclarer l'ampoule perdue
                 if b.misses >= MAX_MISSES:
                     b.online = False
-                    print(f"Attention : {b.name} perdue, recherche en cours.")
+                    log.warning("%s perdue, recherche en cours.", b.name)
 
     def restore_state(self):
         for b in [*self.bulbs, *self.retired]:

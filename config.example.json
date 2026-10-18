@@ -9,6 +9,7 @@
   "restore_on_exit": true,
   "pause_hotkey": "ctrl+alt+l",
   "pause_mode": "restore",
+  "auto_pause_session": true,
   "neutral_low": 0.06,
   "neutral_high": 0.14,
   "neutral_rgb": [255, 200, 130],

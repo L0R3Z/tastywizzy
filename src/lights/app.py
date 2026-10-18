@@ -1,4 +1,6 @@
+import logging
 import time
+from dataclasses import dataclass
 from pathlib import Path
 
 from mss.exception import ScreenShotError
@@ -6,12 +8,16 @@ from mss.exception import ScreenShotError
 from . import color, config, shutdown
 from .capture import MssCapture
 from .hotkey import PauseHotkey
+from .pause import SESSION, PauseState
+from .session import SessionWatcher
 from .smoothing import Smoother
 from .wiz import Wiz
 
 DIMMING_MIN, DIMMING_MAX = 10, 100  # plage acceptée par les ampoules WiZ
 CAPTURE_RETRY_S = 1.0  # attente quand l'écran n'est pas capturable (session verrouillée, UAC)
 RESTART_KEYS = ("monitor", "pause_hotkey")  # non rechargeables à chaud
+
+log = logging.getLogger(__name__)
 
 
 def compute_state(cfg, h, s, k, v):
@@ -63,7 +69,38 @@ class ConfigWatcher:
         return new
 
 
-def run(cfg, duration=None, config_path=None):
+def _restore(wiz):
+    wiz.restore_state()
+    time.sleep(0.2)
+    wiz.restore_state()  # UDP sans accusé : on double l'envoi par sécurité
+
+
+@dataclass
+class Runtime:
+    """Dépendances de la boucle principale."""
+    wiz: Wiz
+    cap: MssCapture
+    pause: PauseState
+    session: SessionWatcher
+    config_path: Path = None
+    duration: float = None
+    on_color: object = None  # on_color(rgb) ou None
+
+
+def apply_pause(cfg, pause, wiz, restored):
+    """En pause : restaure l'état d'origine une seule fois si besoin. Renvoie le nouveau `restored`.
+
+    Verrouillage/veille : toujours l'état d'origine ; pause manuelle : selon pause_mode.
+    """
+    if not restored and (cfg["pause_mode"] == "restore" or pause.has(SESSION)):
+        wiz.restore_state()
+        return True
+    return restored
+
+
+def run(cfg, duration=None, config_path=None, pause=None, on_color=None):
+    """Boucle principale. pause : PauseState partagé (tray) ; on_color(rgb) : appelé à chaque envoi."""
+    pause = pause or PauseState()
     save = (lambda b: config.save_bulbs(config_path, b)) if config_path else None
     shutdown.install()
     cap = wiz = None
@@ -72,45 +109,44 @@ def run(cfg, duration=None, config_path=None):
         wiz = Wiz(cfg["bulbs"], save, cfg["bulb_retry_s"], shutdown.stop)
         cap = MssCapture(cfg["monitor"])
         wiz.connect()
-        print("État sauvegardé :", {b.name: bool(b.saved) for b in wiz.bulbs})
-        _loop(cfg, wiz, cap, duration, config_path)
+        log.info("État sauvegardé : %s", {b.name: bool(b.saved) for b in wiz.bulbs})
+        session = SessionWatcher(pause, cfg["auto_pause_session"], on_suspend=lambda: _restore(wiz))
+        _loop(cfg, Runtime(wiz, cap, pause, session, config_path, duration, on_color))
     finally:
         if cap:
             cap.close()
         if wiz and cfg["restore_on_exit"]:
-            wiz.restore_state()
-            time.sleep(0.2)
-            wiz.restore_state()  # UDP sans accusé : on double l'envoi par sécurité
-            print("État des ampoules restauré.")
+            _restore(wiz)
+            log.info("État des ampoules restauré.")
         shutdown.done.set()
 
 
-def _loop(cfg, wiz, cap, duration, config_path):
+def _loop(cfg, rt):
+    wiz, cap, pause = rt.wiz, rt.cap, rt.pause
     smoother = Smoother(cfg["tau"])
-    watcher = ConfigWatcher(config_path)
+    watcher = ConfigWatcher(rt.config_path)
     last_sent, last_send_t, prev_t = None, 0.0, time.monotonic()
-    t_end = prev_t + duration if duration is not None else None
-    capture_lost = False
-    hk = PauseHotkey(cfg["pause_hotkey"]) if cfg["pause_hotkey"] else None
+    t_end = prev_t + rt.duration if rt.duration is not None else None
+    capture_lost = restored = False
+    hk = PauseHotkey(cfg["pause_hotkey"], pause.toggle_manual) if cfg["pause_hotkey"] else None
     if hk and hk.error:
-        print("Attention :", hk.error)
+        log.warning(hk.error)
         hk = None
     elif hk:
-        print(f"Pause : {cfg['pause_hotkey']} (mode {cfg['pause_mode']})")
+        log.info("Pause : %s (mode %s)", cfg["pause_hotkey"], cfg["pause_mode"])
     while not shutdown.stop.is_set():
-        if hk and hk.paused.is_set():
-            if hk.toggled.is_set():
-                hk.toggled.clear()
-                if cfg["pause_mode"] == "restore":
-                    wiz.restore_state()
-                print("Pause.")
+        if pause.changed.is_set():
+            pause.changed.clear()
+            if pause.paused:
+                log.info("Pause.")
+            else:
+                smoother, last_sent, restored = Smoother(cfg["tau"]), None, False
+                log.info("Reprise.")
+        if pause.paused:
+            restored = apply_pause(cfg, pause, wiz, restored)
             shutdown.stop.wait(0.1)
             prev_t = time.monotonic()
             continue
-        if hk and hk.toggled.is_set():  # reprise
-            hk.toggled.clear()
-            smoother, last_sent = Smoother(cfg["tau"]), None
-            print("Reprise.")
         try:
             new = watcher.poll(time.monotonic())
             if new:
@@ -118,23 +154,24 @@ def _loop(cfg, wiz, cap, duration, config_path):
                 cfg.update(new)
                 wiz.reconfigure(cfg["bulbs"], cfg["bulb_retry_s"])
                 smoother.tau = cfg["tau"]
+                rt.session.auto_pause = cfg["auto_pause_session"]
                 last_sent = None
-                print("Config rechargée.")
+                log.info("Config rechargée.")
                 if restart:
-                    print(f"Redémarre l'appli pour appliquer : {', '.join(restart)}")
+                    log.info("Redémarre l'appli pour appliquer : %s", ", ".join(restart))
         except Exception as e:  # ancienne config conservée
-            print("Config invalide, ancienne conservée :", e)
+            log.warning("Config invalide, ancienne conservée : %s", e)
         try:
             img = cap.grab()
         except ScreenShotError:
             if not capture_lost:
-                print("Écran non capturable (session verrouillée ?), en attente.")
+                log.info("Écran non capturable (session verrouillée ?), en attente.")
                 capture_lost = True
             shutdown.stop.wait(CAPTURE_RETRY_S)
             prev_t = time.monotonic()
             continue
         if capture_lost:
-            print("Capture reprise.")
+            log.info("Capture reprise.")
             capture_lost = False
         if cfg["crop_black_bars"]:
             img = color.crop_black_bars(img)
@@ -147,6 +184,8 @@ def _loop(cfg, wiz, cap, duration, config_path):
         changed = last_sent is None or max(abs(x - y) for x, y in zip(state, last_sent)) >= cfg["min_change"]
         if due and changed:
             wiz.set_color(rgb, dimming, white)
+            if rt.on_color:
+                rt.on_color(rgb)
             last_sent, last_send_t = state, now
         prev_t = now
         if t_end is not None and now >= t_end:

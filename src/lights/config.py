@@ -14,6 +14,7 @@ DEFAULTS = {
     "crop_black_bars": True,
     "restore_on_exit": True,
     "pause_hotkey": "ctrl+alt+l",  # "" pour désactiver
+    "auto_pause_session": True,  # pause (état d'origine) quand la session est verrouillée ou le PC en veille
     "pause_mode": "restore",  # "restore" : remet l'état d'origine ; "freeze" : garde la dernière couleur
     "neutral_low": 0.06,  # colorfulness sous laquelle l image est neutre (blanc chaud)
     "neutral_high": 0.14,  # colorfulness à partir de laquelle la couleur est pleine
@@ -53,6 +54,7 @@ def validate(cfg):
     _check(mode in cfg["brightness_scales"] and mode in cfg["dimming_min_by_mode"],
            f"brightness_mode '{mode}' absent de brightness_scales ou dimming_min_by_mode")
     _check(cfg["pause_mode"] in ("restore", "freeze"), "pause_mode doit valoir restore ou freeze")
+    _check(isinstance(cfg["auto_pause_session"], bool), "auto_pause_session doit valoir true ou false")
     _check(cfg["monitor"] in ("primary", "all"), "monitor doit valoir primary ou all")
     for key in ("send_hz", "capture_hz", "bulb_retry_s"):
         _check(float(cfg[key]) > 0, f"{key} doit être > 0")

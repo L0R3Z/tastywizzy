@@ -9,7 +9,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
 import numpy as np  # noqa: E402
 
-from lights import app, color, config, hotkey, wiz  # noqa: E402
+from lights import app, color, config, hotkey, pause, wiz  # noqa: E402
 from lights.smoothing import Smoother  # noqa: E402
 
 
@@ -138,6 +138,53 @@ class WizTest(unittest.TestCase):
         self.assertEqual((w.bulbs[0].ip, w.bulbs[0].mac), ("1.1.1.9", "aa"))
         self.assertEqual(w.bulbs[0].saved, {"state": True, "temp": 2700})
         self.assertEqual(w.retired, [])
+
+
+class PauseTest(unittest.TestCase):
+    def test_reasons_combine(self):
+        p = pause.PauseState()
+        p.set(pause.SESSION, True)
+        self.assertTrue(p.paused and p.changed.is_set())
+        p.changed.clear()
+        p.toggle_manual()
+        self.assertFalse(p.changed.is_set())  # déjà en pause : pas de transition
+        p.set(pause.SESSION, False)  # déverrouillage : la pause manuelle reste
+        self.assertTrue(p.paused)
+        p.toggle_manual()
+        self.assertFalse(p.paused)
+        self.assertTrue(p.changed.is_set())
+
+    def test_auto_pause_session_must_be_bool(self):
+        cfg = config.load("absent.json")
+        cfg["auto_pause_session"] = "oui"
+        with self.assertRaises(ValueError):
+            config.validate(cfg)
+
+    def test_listener_only_on_change_and_errors_swallowed(self):
+        p = pause.PauseState()
+        calls = []
+        p.listeners += [lambda: calls.append(1), lambda: 1 / 0]
+        p.set(pause.SESSION, True)
+        p.set(pause.SESSION, True)  # déjà posé : pas de notification
+        self.assertEqual(calls, [1])
+
+    def test_apply_pause_session_restores_in_freeze_mode(self):
+        class FakeWiz:
+            restores = 0
+
+            def restore_state(self):
+                self.restores += 1
+
+        cfg, w, p = {"pause_mode": "freeze"}, FakeWiz(), pause.PauseState()
+        p.toggle_manual()
+        restored = app.apply_pause(cfg, p, w, False)  # pause manuelle en freeze : couleur gardée
+        self.assertEqual((restored, w.restores), (False, 0))
+        p.set(pause.SESSION, True)  # verrouillage : état d'origine, une seule fois
+        restored = app.apply_pause(cfg, p, w, restored)
+        restored = app.apply_pause(cfg, p, w, restored)
+        self.assertEqual((restored, w.restores), (True, 1))
+        p.set(pause.SESSION, False)  # déverrouillage : la pause manuelle reste
+        self.assertTrue(p.paused)
 
 
 if __name__ == "__main__":

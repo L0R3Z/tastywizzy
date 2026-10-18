@@ -229,6 +229,14 @@ Les défauts indiqués sont ceux du code (`src/lights/config.py`). Le `config.js
 - **Prise en compte** : à chaud
 - **Détails** : en `restore`, l'état restauré est celui sauvegardé au lancement du programme. À la reprise, la synchro repart de zéro, sans lissage hérité.
 
+### auto_pause_session
+- **Libellé** : Pause au verrouillage et à la veille
+- **Infobulle** : Met la synchro en pause et remet les ampoules dans leur état d'origine quand la session est verrouillée (Win+L) ou que le PC part en veille. Reprise automatique au déverrouillage.
+- **Type** : booléen
+- **Défaut** : `true`
+- **Prise en compte** : à chaud
+- **Détails** : l'état d'origine est toujours restauré, quel que soit `pause_mode`. Une pause manuelle (raccourci ou icône) reste active après le déverrouillage. À la mise en veille, la restauration est envoyée immédiatement, avant la coupure du réseau.
+
 ### restore_on_exit
 - **Libellé** : Restaurer à la fermeture
 - **Infobulle** : À la fermeture du programme (fenêtre fermée, Ctrl+C, arrêt de Windows), remet les ampoules dans leur état d'origine.

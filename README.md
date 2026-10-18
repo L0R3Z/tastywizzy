@@ -32,7 +32,13 @@ python main.py 60       # runs for 60 seconds
 python -m unittest discover tests   # unit tests
 ```
 
-On first run, `config.json` is created from `config.example.json`: set your bulbs' IP addresses in it. `lancer.bat` is a shortcut to launch the app (uses `.venv` if present, otherwise the `py` launcher).
+On first run, `config.json` is created from `config.example.json`: set your bulbs' IP addresses in it. `lancer.bat` launches the app in a console (`main.py --console`) (uses `.venv` if present, otherwise the `py` launcher).
+
+**Background mode** — `lancer_fond.bat` (or `TastyWizzy.exe`) runs without a console, with an icon in the notification area: pause/resume, open the log, open the config, *Start with Windows* (checkbox), quit. The log is in `%LOCALAPPDATA%\TastyWizzy\lights.log`. Only one instance can run at a time.
+
+**Auto-pause** — locking the session (Win+L) or putting the PC to sleep pauses the sync and restores the bulbs' original state; unlocking resumes it (`auto_pause_session`, on by default). A manual pause stays active after unlocking.
+
+**Executable** — `build.bat` produces `dist\TastyWizzy.exe` (PyInstaller, single file). Put it in any folder: `config.json` is created next to it on first launch.
 
 ## Roadmap
 

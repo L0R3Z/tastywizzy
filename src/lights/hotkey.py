@@ -27,12 +27,11 @@ def parse(combo):
 
 
 class PauseHotkey:
-    """Raccourci global (RegisterHotKey) : chaque appui bascule `paused`."""
+    """Raccourci global (RegisterHotKey) : chaque appui appelle on_press (dans le thread du raccourci)."""
 
-    def __init__(self, combo):
+    def __init__(self, combo, on_press=lambda: None):
         self.combo = combo
-        self.paused = threading.Event()
-        self.toggled = threading.Event()  # posé à chaque appui, à effacer par le consommateur
+        self.on_press = on_press
         self.error = None
         try:
             self._keys = parse(combo)
@@ -56,8 +55,4 @@ class PauseHotkey:
         msg = wintypes.MSG()
         while user32.GetMessageW(ctypes.byref(msg), None, 0, 0) > 0:
             if msg.message == WM_HOTKEY:
-                if self.paused.is_set():
-                    self.paused.clear()
-                else:
-                    self.paused.set()
-                self.toggled.set()
+                self.on_press()
