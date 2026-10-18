@@ -13,7 +13,7 @@ A command-line script (V1) that:
 - **Captures the screen** (primary monitor or all monitors) with `mss`, and optionally ignores black bars around the image.
 - **Computes a dominant colour** (circular hue mean, saturation-weighted) and a brightness level, with time-based smoothing.
 - **Handles neutral scenes** (black, grey, white) by blending to a configurable neutral colour instead of showing a stray tint.
-- **Drives several WiZ bulbs** over UDP (port 38899), fire-and-forget, at a configurable rate (default 10 Hz). Bulbs are addressed by fixed IP (see `config.json`).
+- **Drives several WiZ bulbs** over UDP (port 38899), fire-and-forget, at a configurable rate (default 10 Hz). Bulbs are addressed by fixed IP (DHCP-reserved on the router, see `config.json`); if one stops answering, it is found again by MAC address on the local network and `config.json` is updated automatically.
 - **Adapts brightness to the screen**, with day/night modes, min/max limits, gain and gamma. It can also use a fixed brightness.
 - **Saves and restores bulb state**: the original state is read at start and restored on exit (and on pause).
 - **Global pause hotkey** (default `Ctrl+Alt+L`): restore the original state or freeze the current colour.
@@ -29,9 +29,10 @@ Requires Python 3.12+ on Windows.
 pip install -r requirements.txt
 python main.py          # runs until Ctrl+C
 python main.py 60       # runs for 60 seconds
+python -m unittest discover tests   # unit tests
 ```
 
-On first run, `config.json` is created from `config.example.json`: set your bulbs' IP addresses in it. `lancer.bat` is a shortcut to launch the app.
+On first run, `config.json` is created from `config.example.json`: set your bulbs' IP addresses in it. `lancer.bat` is a shortcut to launch the app (uses `.venv` if present, otherwise the `py` launcher).
 
 ## Roadmap
 
@@ -44,4 +45,3 @@ Planned changes:
 - **Warm-white fallback** for low-saturation scenes (optional).
 - **`dxcam` capture**, for exclusive-fullscreen games.
 - **Audio-reactive mode** (WASAPI loopback), once the hue sync is complete.
-- **DHCP reservation** for the bulbs, so their IPs stay stable.

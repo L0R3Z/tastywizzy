@@ -19,10 +19,18 @@ Les défauts indiqués sont ceux du code (`src/lights/config.py`). Le `config.js
 ### bulbs
 - **Libellé** : Ampoules
 - **Infobulle** : Noms et adresses IP des ampoules WiZ à piloter. Toutes reçoivent la même couleur.
-- **Type** : dictionnaire nom → adresse IP
-- **Défaut** : `{"plafonnier": "192.168.1.29", "bureau": "192.168.1.33"}`
+- **Type** : dictionnaire nom → adresse IP, ou nom → `{"ip": ..., "mac": ...}`
+- **Défaut** : `{"plafonnier": "192.168.1.101", "bureau": "192.168.1.102"}`
 - **Prise en compte** : au redémarrage
-- **Détails** : la découverte automatique par broadcast ne fonctionne pas sur ce réseau, donc les IP sont fixes. Il est conseillé de leur réserver une adresse (réservation DHCP) sur le routeur pour qu'elles ne changent pas.
+- **Détails** : les IP sont réservées sur la SFR Box (réservation DHCP : plafonnier .101, bureau .102). Au lancement, l'appli lit l'adresse MAC de chaque ampoule et l'enregistre ici automatiquement ; si une ampoule ne répond plus à son IP, elle est recherchée par MAC sur le réseau local et `config.json` est corrigé tout seul. Une ampoule introuvable est ignorée et recherchée de nouveau toutes les `bulb_retry_s` secondes.
+
+### bulb_retry_s
+- **Libellé** : Délai de nouvelle recherche
+- **Infobulle** : Toutes les combien de secondes l'appli recherche une ampoule injoignable.
+- **Type** : nombre (secondes)
+- **Défaut** : `30`
+- **Prise en compte** : au redémarrage
+- **Détails** : la recherche se fait en arrière-plan, sans ralentir la synchro des autres ampoules.
 
 ### monitor
 - **Libellé** : Écran capturé
@@ -110,6 +118,14 @@ Les défauts indiqués sont ceux du code (`src/lights/config.py`). Le `config.js
 - **Prise en compte** : à chaud
 - **Détails** : un blanc pur peut paraître bleuté ou rosé selon l'ampoule. Un blanc chaud (par exemple `[255, 200, 130]`) est souvent plus agréable. Les ampoules fabriquent ce blanc avec leurs LED de couleur, d'où des écarts de teinte possibles.
 
+### use_white_led
+- **Libellé** : Utiliser la LED blanche
+- **Infobulle** : Activé : les images neutres sont rendues par la LED blanche chaude de l'ampoule. Désactivé : tout est fait avec les LED RGB.
+- **Type** : booléen
+- **Défaut** : `false`
+- **Prise en compte** : à chaud
+- **Détails** : activé, la LED blanche chaude (canal `w`) remplace la couleur neutre, et `neutral_rgb` n'est plus utilisé. Entre image neutre et colorée, les LED RGB et la LED blanche sont mélangées progressivement. Nécessite une ampoule WiZ RGBW (couleur + blanc).
+
 ---
 
 ## Luminosité
@@ -164,7 +180,7 @@ Les défauts indiqués sont ceux du code (`src/lights/config.py`). Le `config.js
 - **Défaut** : `100`
 - **Plage** : 10 à 100
 - **Prise en compte** : à chaud
-- **Détails** : utilisé quand l'image est colorée. Entre image neutre et image colorée, le plafond passe progressivement de `dimming_max_white` à `dimming_max`.
+- **Détails** : plafond général. Avec `use_white_led`, il s'applique aux images colorées et le plafond passe progressivement de `dimming_max_white` (image neutre) à `dimming_max` (image colorée). Sans `use_white_led`, il s'applique à toutes les images.
 
 ### dimming_max_white
 - **Libellé** : Luminosité maximale (blancs)
@@ -173,7 +189,7 @@ Les défauts indiqués sont ceux du code (`src/lights/config.py`). Le `config.js
 - **Défaut** : `60`
 - **Plage** : 10 à 100
 - **Prise en compte** : à chaud
-- **Détails** : à même pourcentage, un blanc paraît bien plus lumineux qu'une couleur, car il allume toutes les LED. Baisser ce plafond adoucit les scènes claires et les menus blancs. Le monter donne plus d'amplitude sur les écrans neutres.
+- **Détails** : à même pourcentage, un blanc paraît bien plus lumineux qu'une couleur, car il allume toutes les LED. Baisser ce plafond adoucit les scènes claires et les menus blancs. Le monter donne plus d'amplitude sur les écrans neutres. Utilisé seulement si `use_white_led` est activé.
 
 ### brightness_gain
 - **Libellé** : Gain de luminosité

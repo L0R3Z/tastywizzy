@@ -12,6 +12,7 @@
   "neutral_low": 0.06,
   "neutral_high": 0.14,
   "neutral_rgb": [255, 200, 130],
+  "use_white_led": false,
   "dimming_min_by_mode": {"night": 10, "day": 35},
   "dimming_max": 100,
   "dimming_max_white": 60,

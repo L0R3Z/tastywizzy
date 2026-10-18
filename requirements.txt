@@ -1,2 +1,2 @@
-mss
-numpy
+mss==10.2.0
+numpy==2.5.4
