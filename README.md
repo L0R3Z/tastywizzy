@@ -8,7 +8,7 @@ Make the room lighting follow what is on screen by setting the colour and bright
 
 ## What it does today
 
-A command-line script (V1) that:
+A Windows app (console or notification-area icon, also packaged as a single `.exe`) that:
 
 - **Captures the screen** (primary monitor or all monitors) with `mss`, and optionally ignores black bars around the image.
 - **Computes a dominant colour** (circular hue mean, saturation-weighted) and a brightness level, with time-based smoothing.
@@ -18,6 +18,9 @@ A command-line script (V1) that:
 - **Saves and restores bulb state**: the original state is read at start and restored on exit (and on pause).
 - **Global pause hotkey** (default `Ctrl+Alt+L`): restore the original state or freeze the current colour.
 - **Hot-reloads `config.json`** while running.
+- **Auto-pauses** when the session is locked or the PC sleeps.
+- **Restores the bulbs cleanly** when the console is closed, on Ctrl+C/Break, logoff or shutdown.
+- **Tray icon** showing the current colour, with pause/resume, log, config, *Start with Windows* and quit.
 
 All settings are documented in [PARAMETRES.md](PARAMETRES.md).
 
@@ -29,7 +32,9 @@ Requires Python 3.12+ on Windows.
 pip install -r requirements.txt
 python main.py          # runs until Ctrl+C
 python main.py 60       # runs for 60 seconds
-python -m unittest discover tests   # unit tests
+python main.py --console   # forces console mode
+python -m unittest discover tests   # unit tests (pip install -r requirements-dev.txt)
+python tools/fade_test.py [A|B|C|D] # WiZ internal fade test
 ```
 
 On first run, `config.json` is created from `config.example.json`: set your bulbs' IP addresses in it. `lancer.bat` launches the app in a console (`main.py --console`) (uses `.venv` if present, otherwise the `py` launcher).
@@ -44,8 +49,8 @@ On first run, `config.json` is created from `config.example.json`: set your bulb
 
 Planned changes:
 
-- **Tray app and settings UI** (`pystray`, packaged with PyInstaller), with every setting as a toggle or slider.
-- **Auto-pause** on lock, sleep or inactivity.
+- **Settings UI** in the tray app, with every setting as a toggle or slider.
+- **Auto-pause on inactivity** (lock and sleep are done).
 - **Profiles** (Film / Game / Work).
 - **Per-bulb screen zones** (optional): each bulb follows its own part of the screen.
 - **Warm-white fallback** for low-saturation scenes (optional).
