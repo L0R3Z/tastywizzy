@@ -1,7 +1,11 @@
 import json
 import os
 import re
+import threading
 from pathlib import Path
+
+changed = threading.Event()  # posé par save_values : à relire sans attendre la vérification périodique
+_write_lock = threading.Lock()  # fenêtre de réglages et recherche d'ampoules écrivent le même fichier
 
 DEFAULTS = {
     "bulbs": {"plafonnier": "192.168.1.101", "bureau": "192.168.1.102"},
@@ -67,8 +71,25 @@ def validate(cfg):
     _check(isinstance(cfg["bulbs"], dict), "bulbs doit être un dictionnaire nom -> IP")
 
 
+def save_values(path, values):
+    """Écrit ces clés dans config.json (fenêtre de réglages) et réveille la boucle pour un effet immédiat."""
+    p = Path(path)
+    with _write_lock:
+        data = json.loads(p.read_text(encoding="utf-8")) if p.exists() else {}
+        data.update(values)
+        tmp = p.with_name(p.name + ".tmp")
+        tmp.write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+        os.replace(tmp, p)
+    changed.set()
+
+
 def save_bulbs(path, bulbs):
     """Réécrit uniquement la clé "bulbs" de config.json (IP/MAC apprises automatiquement)."""
+    with _write_lock:
+        return _save_bulbs(path, bulbs)
+
+
+def _save_bulbs(path, bulbs):
     p = Path(path)
     text = p.read_text(encoding="utf-8") if p.exists() else "{}"
     data = json.loads(text)

@@ -43,7 +43,7 @@ def setup_logging(console):
 
 
 def main():
-    args = [a for a in sys.argv[1:] if a != "--console"]
+    args = [a for a in sys.argv[1:] if a not in ("--console", "--settings")]
     console = "--console" in sys.argv[1:]
     setup_logging(console and has_console())
     # une seule instance : démarrage auto + lancement manuel se battraient pour les ampoules
@@ -67,16 +67,21 @@ def main():
         fail(f"Config invalide : {e}")
 
     try:
+        from lights.settings_ui import SettingsWindow
         from lights.tray import Tray
-    except ImportError:  # pystray/Pillow absents : mode console seul
+    except ImportError:  # pystray/Pillow/customtkinter absents : mode console seul
         Tray = None
         if not console:  # lancé sans console (pythonw, démarrage auto) : sans icône, impossible de quitter
-            fail("pystray/Pillow manquants : réinstalle les dépendances (pip install -r requirements.txt).")
+            fail("Dépendances manquantes : réinstalle-les (pip install -r requirements.txt).")
     if console:
         app.run(cfg, duration, path)
         return
     pause = PauseState()
-    tray = Tray(pause, LOG_PATH, path)
+    tray = None
+    settings = SettingsWindow(path, pause, lambda: tray.rgb)
+    tray = Tray(pause, LOG_PATH, path, settings.open)
+    if "--settings" in sys.argv[1:]:
+        settings.open()
 
     def worker():
         try:
@@ -89,6 +94,7 @@ def main():
     t = threading.Thread(target=worker, daemon=True)  # ne bloque pas la sortie si app.run reste coincé
     t.start()
     tray.run()  # bloque jusqu'à tray.stop() (Quitter -> shutdown.stop -> fin de app.run)
+    settings.stop()
     shutdown.stop.set()
     t.join(10)
 

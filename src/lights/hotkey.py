@@ -3,6 +3,8 @@ import threading
 from ctypes import wintypes
 
 WM_HOTKEY = 0x0312
+WM_QUIT = 0x0012
+PM_NOREMOVE = 0
 MOD_NOREPEAT = 0x4000
 VK_F1 = 0x70
 MODS = {"alt": 0x0001, "ctrl": 0x0002, "shift": 0x0004, "win": 0x0008}
@@ -33,6 +35,7 @@ class PauseHotkey:
         self.combo = combo
         self.on_press = on_press
         self.error = None
+        self._thread_id = None
         try:
             self._keys = parse(combo)
         except ValueError as e:
@@ -51,8 +54,17 @@ class PauseHotkey:
             self.error = f"Raccourci {self.combo} déjà pris"
             self._ok.set()
             return
-        self._ok.set()
         msg = wintypes.MSG()
+        user32.PeekMessageW(ctypes.byref(msg), None, 0, 0, PM_NOREMOVE)  # crée la file de messages avant close()
+        self._thread_id = ctypes.windll.kernel32.GetCurrentThreadId()
+        self._ok.set()
         while user32.GetMessageW(ctypes.byref(msg), None, 0, 0) > 0:
             if msg.message == WM_HOTKEY:
                 self.on_press()
+        user32.UnregisterHotKey(None, 1)
+
+    def close(self):
+        """Libère le raccourci (changement à chaud) ; sans effet s'il n'a pas pu être enregistré."""
+        if self._thread_id:
+            ctypes.windll.user32.PostThreadMessageW(self._thread_id, WM_QUIT, 0, 0)
+            self._thread.join(1)

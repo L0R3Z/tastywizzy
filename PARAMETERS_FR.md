@@ -29,7 +29,7 @@ Les défauts indiqués sont ceux du code (`src/lights/config.py`). Le `config.js
 - **Infobulle** : Toutes les combien de secondes l'appli recherche une ampoule injoignable.
 - **Type** : nombre (secondes)
 - **Défaut** : `30`
-- **Prise en compte** : au redémarrage
+- **Prise en compte** : à chaud
 - **Détails** : la recherche se fait en arrière-plan, sans ralentir la synchro des autres ampoules.
 
 ### monitor
@@ -37,7 +37,7 @@ Les défauts indiqués sont ceux du code (`src/lights/config.py`). Le `config.js
 - **Infobulle** : « primary » capture l'écran principal, « all » capture tous les écrans ensemble.
 - **Type** : choix (`primary` ou `all`)
 - **Défaut** : `primary`
-- **Prise en compte** : au redémarrage
+- **Prise en compte** : à chaud
 - **Détails** : avec `all`, les écrans sont fusionnés en une seule image (bureau virtuel), et la couleur est la moyenne de tous.
 
 ### crop_black_bars
@@ -224,7 +224,7 @@ Les défauts indiqués sont ceux du code (`src/lights/config.py`). Le `config.js
 - **Infobulle** : Raccourci clavier global qui met la synchro en pause et la reprend, même depuis un jeu.
 - **Type** : raccourci clavier (chaîne)
 - **Défaut** : `ctrl+alt+l`
-- **Prise en compte** : au redémarrage
+- **Prise en compte** : à chaud
 - **Détails** : modificateurs possibles : `ctrl`, `alt`, `shift`, `win`, suivis d'une lettre, d'un chiffre ou d'une touche `f1` à `f24` (exemple : `ctrl+shift+f9`). Une chaîne vide désactive le raccourci. Si la combinaison est déjà utilisée par un autre programme, un avertissement s'affiche au démarrage et la pause par raccourci n'est pas disponible.
 
 ### pause_mode

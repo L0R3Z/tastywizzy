@@ -9,7 +9,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
 import numpy as np  # noqa: E402
 
-from lights import app, color, config, hotkey, pause, wiz  # noqa: E402
+from lights import app, color, config, hotkey, pause, settings_schema, wiz  # noqa: E402
 from lights.smoothing import Smoother  # noqa: E402
 
 
@@ -96,6 +96,44 @@ class ConfigTest(unittest.TestCase):
             text = p.read_text(encoding="utf-8")
             self.assertTrue(text.startswith('{\n  "tau": 0.1,\n'))
             self.assertEqual(json.loads(text)["bulbs"]["a"]["ip"], "1.2.3.5")
+
+
+class SettingsTest(unittest.TestCase):
+    def all_fields(self):
+        return [f for _, fields in settings_schema.SECTIONS + settings_schema.ADVANCED for f in fields]
+
+    def test_fields_match_defaults(self):
+        cfg = config.DEFAULTS
+        for f in self.all_fields():
+            value = settings_schema.get_value(cfg, f.path)
+            if f.kind == "slider":
+                self.assertTrue(f.lo <= value <= f.hi, f.path)
+
+    def test_every_setting_is_reachable(self):
+        keys = {f.path[0] for f in self.all_fields()}
+        self.assertEqual(set(config.DEFAULTS) - keys, {"bulbs"})
+
+    def test_snap(self):
+        pct = settings_schema.Field(("x",), "x", lo=10)
+        self.assertEqual(settings_schema.snap(55.4, pct), 55)
+        self.assertIsInstance(settings_schema.snap(55.4, pct), int)
+        fine = settings_schema.Field(("x",), "x", hi=1, step=0.01)
+        self.assertEqual(settings_schema.snap(0.123, fine), 0.12)
+
+    def test_with_value_leaves_original_untouched(self):
+        cfg = {"a": {"b": 1}}
+        self.assertEqual(settings_schema.with_value(cfg, ("a", "b"), 2), {"a": {"b": 2}})
+        self.assertEqual(cfg, {"a": {"b": 1}})
+
+    def test_save_is_seen_immediately_and_keeps_other_keys(self):
+        with tempfile.TemporaryDirectory() as d:
+            path = Path(d) / "config.json"
+            path.write_text(json.dumps({"tau": 0.1, "send_hz": 10}), encoding="utf-8")
+            watcher = app.ConfigWatcher(path)
+            watcher.next_check = float("inf")  # periodic check is not due
+            config.save_values(path, {"tau": 0.5})
+            self.assertEqual(watcher.poll(0.0)["tau"], 0.5)
+            self.assertEqual(json.loads(path.read_text(encoding="utf-8")), {"tau": 0.5, "send_hz": 10})
 
 
 class HotkeyTest(unittest.TestCase):

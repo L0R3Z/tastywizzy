@@ -15,7 +15,6 @@ from .wiz import Wiz
 
 DIMMING_MIN, DIMMING_MAX = 10, 100  # plage acceptée par les ampoules WiZ
 CAPTURE_RETRY_S = 1.0  # attente quand l'écran n'est pas capturable (session verrouillée, UAC)
-RESTART_KEYS = ("monitor", "pause_hotkey")  # non rechargeables à chaud
 
 log = logging.getLogger(__name__)
 
@@ -52,11 +51,13 @@ class ConfigWatcher:
 
     def poll(self, now):
         """Renvoie la nouvelle config si le fichier a changé, None sinon. Lève si elle est invalide."""
-        if self.mtime is None or now < self.next_check:
+        forced = config.changed.is_set()  # enregistré par la fenêtre de réglages : effet immédiat
+        if self.mtime is None or (now < self.next_check and not forced):
             return None
+        config.changed.clear()
         self.next_check = now + 1.0
         m = self._stat()
-        if m is None or m == self.mtime:
+        if m is None or (m == self.mtime and not forced):  # horloge de fichier trop grossière pour un save rapide
             return None
         self.mtime = m
         new = config.load(self.path)
@@ -116,6 +117,16 @@ def run(cfg, duration=None, config_path=None, pause=None, on_color=None):
         shutdown.done.set()
 
 
+def _start_hotkey(cfg, pause):
+    hk = PauseHotkey(cfg["pause_hotkey"], pause.toggle_manual) if cfg["pause_hotkey"] else None
+    if hk and hk.error:
+        log.warning(hk.error)
+        return None
+    if hk:
+        log.info("Pause : %s (mode %s)", cfg["pause_hotkey"], cfg["pause_mode"])
+    return hk
+
+
 def _loop(cfg, rt):
     wiz, cap, pause = rt.wiz, rt.cap, rt.pause
     smoother = Smoother(cfg["tau"])
@@ -123,13 +134,26 @@ def _loop(cfg, rt):
     last_sent, last_send_t, prev_t = None, 0.0, time.monotonic()
     t_end = prev_t + rt.duration if rt.duration is not None else None
     capture_lost = restored = False
-    hk = PauseHotkey(cfg["pause_hotkey"], pause.toggle_manual) if cfg["pause_hotkey"] else None
-    if hk and hk.error:
-        log.warning(hk.error)
-        hk = None
-    elif hk:
-        log.info("Pause : %s (mode %s)", cfg["pause_hotkey"], cfg["pause_mode"])
+    hk = _start_hotkey(cfg, pause)
     while not shutdown.stop.is_set():
+        try:  # aussi en pause : les réglages changés pendant une pause s'appliquent tout de suite
+            new = watcher.poll(time.monotonic())
+            if new:
+                old_monitor, old_hotkey = cfg["monitor"], cfg["pause_hotkey"]
+                cfg.update(new)
+                wiz.reconfigure(cfg["bulbs"], cfg["bulb_retry_s"])
+                smoother.tau = cfg["tau"]
+                rt.session.auto_pause = cfg["auto_pause_session"]
+                if cfg["monitor"] != old_monitor:
+                    cap.set_monitor(cfg["monitor"])
+                if cfg["pause_hotkey"] != old_hotkey:
+                    if hk:
+                        hk.close()
+                    hk = _start_hotkey(cfg, pause)
+                last_sent = None
+                log.info("Config rechargée.")
+        except Exception as e:  # ancienne config conservée
+            log.warning("Config invalide, ancienne conservée : %s", e)
         if pause.changed.is_set():
             pause.changed.clear()
             if pause.paused:
@@ -144,20 +168,6 @@ def _loop(cfg, rt):
             shutdown.stop.wait(0.1)
             prev_t = time.monotonic()
             continue
-        try:
-            new = watcher.poll(time.monotonic())
-            if new:
-                restart = [k for k in RESTART_KEYS if new[k] != cfg[k]]
-                cfg.update(new)
-                wiz.reconfigure(cfg["bulbs"], cfg["bulb_retry_s"])
-                smoother.tau = cfg["tau"]
-                rt.session.auto_pause = cfg["auto_pause_session"]
-                last_sent = None
-                log.info("Config rechargée.")
-                if restart:
-                    log.info("Redémarre l'appli pour appliquer : %s", ", ".join(restart))
-        except Exception as e:  # ancienne config conservée
-            log.warning("Config invalide, ancienne conservée : %s", e)
         try:
             img = cap.grab()
         except ScreenShotError:

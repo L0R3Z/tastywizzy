@@ -20,7 +20,8 @@ A Windows app (console or notification-area icon, also packaged as a single `.ex
 - **Hot-reloads `config.json`** while running.
 - **Auto-pauses** when the session is locked or the PC sleeps.
 - **Restores the bulbs cleanly** when the console is closed, on Ctrl+C/Break, logoff or shutdown.
-- **Tray icon** showing the current colour, with pause/resume, log, config, *Start with Windows* and quit.
+- **Tray icon** showing the current colour, with pause/resume, settings, log, config, *Start with Windows* and quit.
+- **Settings window** (right-click the tray icon, *Paramètres*): every setting except the bulb list can be changed there and applies instantly, ordered by usefulness with the rarer ones under *Advanced*. Run `python main.py --settings` to open it at startup.
 
 All settings are documented in [PARAMETERS.md](PARAMETERS.md) (French version: [PARAMETERS_FR.md](PARAMETERS_FR.md)).
 
@@ -49,7 +50,6 @@ On first run, `config.json` is created from `config.example.json`: set your bulb
 
 Planned changes:
 
-- **Settings UI** in the tray app, with every setting as a toggle or slider.
 - **Auto-pause on inactivity** (lock and sleep are done).
 - **Profiles** (Film / Game / Work).
 - **Per-bulb screen zones** (optional): each bulb follows its own part of the screen.

@@ -23,7 +23,7 @@ def _image(rgb):
 class Tray:
     """Icône de la zone de notification. run() bloque (thread principal) jusqu'à stop()."""
 
-    def __init__(self, pause, log_path, config_path):
+    def __init__(self, pause, log_path, config_path, on_settings):
         self.pause = pause
         self.rgb = (255, 160, 60)
         self._shown = None
@@ -32,6 +32,7 @@ class Tray:
         menu = pystray.Menu(
             pystray.MenuItem(self._pause_label, pause.toggle_manual, checked=lambda _: pause.has(MANUAL),
                              default=True),
+            pystray.MenuItem("Paramètres", lambda: on_settings()),
             pystray.Menu.SEPARATOR,
             pystray.MenuItem("Ouvrir le journal", lambda: os.startfile(log_path)),
             pystray.MenuItem("Ouvrir la config", lambda: os.startfile(config_path)),

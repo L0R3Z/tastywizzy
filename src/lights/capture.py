@@ -20,6 +20,9 @@ class MssCapture(Capture):
         if monitor not in MONITORS:
             raise ValueError(f"monitor doit valoir {' ou '.join(MONITORS)}")
         self._sct = mss.mss()
+        self.set_monitor(monitor)
+
+    def set_monitor(self, monitor):
         mons = self._sct.monitors  # [0]=bureau virtuel, [1]=principal
         self._mon = mons[0] if monitor == "all" else mons[1]
 

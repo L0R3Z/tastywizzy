@@ -1,6 +1,6 @@
 # config.json parameters
 
-Reference for every setting. This file is the source for the UI tooltips (V2). A French version is available in [PARAMETRES.md](PARAMETRES.md).
+Reference for every setting. This file is the source for the UI tooltips (V2). A French version is available in [PARAMETERS_FR.md](PARAMETERS_FR.md).
 
 **Entry format** (designed to be parsed by a script):
 - the `### key` heading is the exact key in `config.json`;
@@ -29,7 +29,7 @@ Defaults listed are those in the code (`src/lights/config.py`). The current `con
 - **Tooltip**: How often, in seconds, the app searches for an unreachable bulb.
 - **Type**: number (seconds)
 - **Default**: `30`
-- **Applied**: on restart
+- **Applied**: live
 - **Details**: the search runs in the background, without slowing down sync for the other bulbs.
 
 ### monitor
@@ -37,7 +37,7 @@ Defaults listed are those in the code (`src/lights/config.py`). The current `con
 - **Tooltip**: "primary" captures the main screen, "all" captures all screens together.
 - **Type**: choice (`primary` or `all`)
 - **Default**: `primary`
-- **Applied**: on restart
+- **Applied**: live
 - **Details**: with `all`, the screens are merged into a single image (virtual desktop), and the color is the average of all of them.
 
 ### crop_black_bars
@@ -224,7 +224,7 @@ Defaults listed are those in the code (`src/lights/config.py`). The current `con
 - **Tooltip**: Global keyboard shortcut that pauses and resumes sync, even from inside a game.
 - **Type**: keyboard shortcut (string)
 - **Default**: `ctrl+alt+l`
-- **Applied**: on restart
+- **Applied**: live
 - **Details**: available modifiers: `ctrl`, `alt`, `shift`, `win`, followed by a letter, a digit or a key `f1` to `f24` (example: `ctrl+shift+f9`). An empty string disables the hotkey. If the combination is already used by another program, a warning is shown at startup and hotkey pause is unavailable.
 
 ### pause_mode
