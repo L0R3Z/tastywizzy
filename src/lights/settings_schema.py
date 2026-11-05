@@ -50,6 +50,12 @@ SECTIONS = (
         Field(("dimming_max_white",), "White LED intensity", "Very bright: keep it low in a dark room.",
               unit="%", visible=lambda cfg: cfg["use_white_led"]),
     )),
+    ("Audio", (
+        Field(("audio_mode",), "Sound reaction", "Reacts to what the PC plays.", "choice",
+              options=(("off", "Off"), ("level", "Volume"), ("beat", "Beats"), ("color", "Sound colours"))),
+        Field(("audio_intensity",), "Intensity", "How strongly the sound moves the brightness.",
+              unit="%", visible=lambda cfg: cfg["audio_mode"] != "off"),
+    )),
     ("Responsiveness", (
         Field(("tau",), "Smoothing", "Low is reactive but jittery, high is soft but delayed.",
               hi=1, step=0.01, unit=" s"),

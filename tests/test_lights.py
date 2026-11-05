@@ -9,7 +9,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
 import numpy as np  # noqa: E402
 
-from lights import app, color, config, hotkey, pause, settings_schema, wiz  # noqa: E402
+from lights import app, audio, color, config, hotkey, pause, settings_schema, wiz  # noqa: E402
 from lights.smoothing import Smoother  # noqa: E402
 
 
@@ -134,6 +134,106 @@ class SettingsTest(unittest.TestCase):
             config.save_values(path, {"tau": 0.5})
             self.assertEqual(watcher.poll(0.0)["tau"], 0.5)
             self.assertEqual(json.loads(path.read_text(encoding="utf-8")), {"tau": 0.5, "send_hz": 10})
+
+
+class AudioTest(unittest.TestCase):
+    RATE = 48000
+
+    def tone(self, hz, amp=0.5, n=1024):
+        return (amp * np.sin(2 * np.pi * hz * np.arange(n) / self.RATE)).astype(np.float32)
+
+    def cfg(self, mode, intensity=50):
+        return dict(config.DEFAULTS, audio_mode=mode, audio_intensity=intensity)
+
+    def test_silence_is_inactive(self):
+        a = audio.AudioAnalyzer()
+        a.feed(np.zeros(1024, dtype=np.float32), self.RATE, 0.0)
+        self.assertFalse(a.state(0.0).active)
+
+    def test_level_adapts_to_loudness(self):
+        a = audio.AudioAnalyzer()
+        a.feed(self.tone(440, 0.02), self.RATE, 0.0)
+        self.assertGreater(a.state(0.0).level, 0.9)  # quiet playback still fills the range
+        a.feed(self.tone(440, 0.5), self.RATE, 0.02)
+        a.feed(self.tone(440, 0.05), self.RATE, 3.0)
+        self.assertLess(a.state(3.0).level, 0.3)
+
+    def test_beat_on_bass_hit_then_decays(self):
+        a = audio.AudioAnalyzer()
+        t = 0.0
+        for _ in range(50):
+            a.feed(self.tone(2000, 0.3), self.RATE, t)
+            t += 0.02
+        self.assertLess(a.state(t).beat, 0.1)
+        a.feed(self.tone(60, 0.5), self.RATE, t)
+        self.assertGreater(a.state(t).beat, 0.9)
+        self.assertLess(a.state(t + 1.0).beat, 0.1)
+
+    def test_high_sounds_have_a_higher_hue(self):
+        hues = []
+        for hz in (100, 4000):
+            a = audio.AudioAnalyzer()
+            for i in range(200):
+                a.feed(self.tone(hz), self.RATE, i * 0.02)
+            hues.append(a.state(4.0).hue)
+        self.assertLess(hues[0], 0.1)
+        self.assertGreater(hues[1], 0.5)
+
+    def test_effects(self):
+        screen = ((10, 20, 30), 80, 5)
+        loud = audio.AudioState(True, level=1.0, beat=0.0, hue=0.0)
+        hit = audio.AudioState(True, level=0.0, beat=1.0, hue=0.0)
+        self.assertEqual(audio.apply_effect(self.cfg("off"), *screen, loud), screen)
+        self.assertEqual(audio.apply_effect(self.cfg("level"), *screen, audio.AudioState()), screen)
+        self.assertEqual(audio.apply_effect(self.cfg("level"), *screen, loud)[1], 70)
+        self.assertEqual(audio.apply_effect(self.cfg("level"), *screen, hit)[1], 40)
+        self.assertEqual(audio.apply_effect(self.cfg("beat"), *screen, loud)[1], 40)
+        self.assertEqual(audio.apply_effect(self.cfg("beat"), *screen, hit)[1], 70)
+        self.assertEqual(audio.apply_effect(self.cfg("color"), *screen, loud), ((255, 0, 0), 75, 0))
+
+    def test_dark_screen_still_reacts_fully(self):
+        hit = audio.AudioState(True, level=0.0, beat=1.0, hue=0.0)
+        self.assertEqual(audio.apply_effect(self.cfg("beat", 100), (1, 2, 3), 25, 0, hit)[1], 100)
+
+    def edm(self, seconds, bpm, gain, sub):
+        rng = np.random.default_rng(1)
+        t = np.arange(int(seconds * self.RATE)) / self.RATE
+        since = (t * bpm / 60 % 1) * 60 / bpm
+        kick = np.exp(-since / 0.07) * np.sin(2 * np.pi * (50 * since + 12 * (1 - np.exp(-since / 0.03))))
+        bass = sub * (1 - 0.5 * np.exp(-since / 0.12)) * np.sin(2 * np.pi * 50 * t)
+        return gain * np.tanh(2.5 * (kick + bass + 0.25 * rng.standard_normal(len(t)))).astype(np.float32)
+
+    def count_beats(self, a, signal, t0):
+        hits, previous = 0, 0.0
+        for i in range(0, len(signal) - 1024, 1024):
+            t = t0 + i / self.RATE
+            a.feed(signal[i:i + 1024], self.RATE, t)
+            beat = a.state(t).beat
+            hits += beat > previous + 0.2
+            previous = beat
+        return hits, t0 + len(signal) / self.RATE
+
+    def test_beats_found_in_limited_tracks_across_a_session(self):
+        a = audio.AudioAnalyzer()
+        t = 0.0
+        for bpm, gain, sub in ((128, 0.9, 0.8), (150, 0.95, 1.5), (100, 0.15, 0.8), (128, 0.9, 0.8)):
+            hits, t = self.count_beats(a, self.edm(20, bpm, gain, sub), t)
+            expected = 20 * bpm / 60
+            self.assertGreater(hits, expected * 0.7, (bpm, gain))
+            self.assertLess(hits, expected * 1.3, (bpm, gain))
+
+    def test_quieter_song_recovers_full_level(self):
+        a = audio.AudioAnalyzer()
+        t = 0.0
+        for gain, seconds in ((0.9, 5), (0.1, 15)):
+            for _ in range(int(seconds * 47)):
+                t += 1024 / self.RATE
+                a.feed(self.tone(440, gain), self.RATE, t)
+        self.assertGreater(a.state(t).level, 0.9)
+
+    def test_invalid_mode_rejected(self):
+        with self.assertRaises(ValueError):
+            config.validate(dict(config.DEFAULTS, audio_mode="disco"))
 
 
 class HotkeyTest(unittest.TestCase):

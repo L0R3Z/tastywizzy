@@ -217,6 +217,27 @@ Les défauts indiqués sont ceux du code (`src/lights/config.py`). Le `config.js
 
 ---
 
+## Audio
+
+### audio_mode
+- **Libellé** : Réaction au son
+- **Infobulle** : Fait réagir les ampoules à ce que joue le PC.
+- **Type** : choix (`off`, `level`, `beat` ou `color`)
+- **Défaut** : `off`
+- **Prise en compte** : à chaud
+- **Détails** : `level` : les couleurs suivent l'écran, la luminosité suit le volume. `beat` : les couleurs suivent l'écran, la luminosité flashe sur les basses. `color` : le son remplace l'écran, les graves en rouge et les aigus en bleu-violet. Le volume s'adapte automatiquement. Après 2 s de silence, les ampoules reviennent à la simple synchro écran.
+
+### audio_intensity
+- **Libellé** : Intensité
+- **Infobulle** : Force avec laquelle le son fait varier la luminosité.
+- **Type** : curseur (%)
+- **Défaut** : `40`
+- **Plage** : 0 à 100
+- **Prise en compte** : à chaud
+- **Détails** : part de la luminosité pilotée par le son. Sans effet si `audio_mode` vaut `off`.
+
+---
+
 ## Pause et arrêt
 
 ### pause_hotkey

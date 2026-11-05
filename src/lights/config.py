@@ -34,6 +34,8 @@ DEFAULTS = {
     "fixed_brightness": 80,  # % (10-100), utilisé si dynamic_brightness est False
     "brightness_gamma": 1.5,  # >1 : les scènes sombres restent plus sombres
     "brightness_gain": 2.0,  # multiplie la luminosité moyenne de l image
+    "audio_mode": "off",  # "off", "level" (volume), "beat" (basses) ou "color" (le son remplace l'écran)
+    "audio_intensity": 40,  # % d'amplitude de l'effet sonore
 }
 
 
@@ -69,6 +71,8 @@ def validate(cfg):
     _check(len(cfg["neutral_rgb"]) == 3 and all(0 <= int(x) <= 255 for x in cfg["neutral_rgb"]),
            "neutral_rgb doit avoir 3 valeurs entre 0 et 255")
     _check(isinstance(cfg["bulbs"], dict), "bulbs doit être un dictionnaire nom -> IP")
+    _check(cfg["audio_mode"] in ("off", "level", "beat", "color"), "audio_mode doit valoir off, level, beat ou color")
+    _check(0 <= float(cfg["audio_intensity"]) <= 100, "audio_intensity doit être entre 0 et 100")
 
 
 def save_values(path, values):

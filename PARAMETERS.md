@@ -217,6 +217,27 @@ Defaults listed are those in the code (`src/lights/config.py`). The current `con
 
 ---
 
+## Audio
+
+### audio_mode
+- **Label**: Sound reaction
+- **Tooltip**: Makes the bulbs react to what the PC plays.
+- **Type**: choice (`off`, `level`, `beat` or `color`)
+- **Default**: `off`
+- **Applied**: live
+- **Details**: `level`: colours follow the screen, brightness follows the volume. `beat`: colours follow the screen, brightness flashes on bass hits. `color`: the sound replaces the screen, with low sounds red and high sounds blue-violet. Volume is adapted automatically. After 2 s of silence, the bulbs return to plain screen sync.
+
+### audio_intensity
+- **Label**: Intensity
+- **Tooltip**: How strongly the sound moves the brightness.
+- **Type**: slider (%)
+- **Default**: `40`
+- **Range**: 0 to 100
+- **Applied**: live
+- **Details**: the share of the brightness controlled by the sound. No effect if `audio_mode` is `off`.
+
+---
+
 ## Pause and exit
 
 ### pause_hotkey

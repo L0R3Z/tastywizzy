@@ -21,6 +21,7 @@ A Windows app (console or notification-area icon, also packaged as a single `.ex
 - **Auto-pauses** when the session is locked or the PC sleeps.
 - **Restores the bulbs cleanly** when the console is closed, on Ctrl+C/Break, logoff or shutdown.
 - **Tray icon** showing the current colour, with pause/resume, settings, log, config, *Start with Windows* and quit.
+- **Audio-reactive modes** (WASAPI loopback, off by default): brightness follows the volume or flashes on bass hits, or the sound replaces the screen as the colour source.
 - **Settings window** (right-click the tray icon, *Paramètres*): every setting except the bulb list can be changed there and applies instantly, ordered by usefulness with the rarer ones under *Advanced*. Run `python main.py --settings` to open it at startup.
 
 All settings are documented in [PARAMETERS.md](PARAMETERS.md) (French version: [PARAMETERS_FR.md](PARAMETERS_FR.md)).
@@ -55,4 +56,3 @@ Planned changes:
 - **Per-bulb screen zones** (optional): each bulb follows its own part of the screen.
 - **Warm-white fallback** for low-saturation scenes (optional).
 - **`dxcam` capture**, for exclusive-fullscreen games.
-- **Audio-reactive mode** (WASAPI loopback), once the hue sync is complete.

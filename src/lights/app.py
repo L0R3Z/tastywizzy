@@ -5,7 +5,8 @@ from pathlib import Path
 
 from mss.exception import ScreenShotError
 
-from . import color, config, shutdown
+from . import audio, color, config, shutdown
+from .audio import AudioListener
 from .capture import MssCapture
 from .hotkey import PauseHotkey
 from .pause import SESSION, PauseState
@@ -81,6 +82,7 @@ class Runtime:
     config_path: Path = None
     duration: float = None
     on_color: object = None  # on_color(rgb) ou None
+    audio: AudioListener = None
 
 
 def apply_pause(cfg, pause, wiz, restored):
@@ -100,6 +102,7 @@ def run(cfg, duration=None, config_path=None, pause=None, on_color=None):
     save = (lambda b: config.save_bulbs(config_path, b)) if config_path else None
     shutdown.install()
     cap = wiz = None
+    listener = AudioListener()
     try:
         config.validate(cfg)
         wiz = Wiz(cfg["bulbs"], save, cfg["bulb_retry_s"], shutdown.stop)
@@ -107,8 +110,10 @@ def run(cfg, duration=None, config_path=None, pause=None, on_color=None):
         wiz.connect()
         log.info("État sauvegardé : %s", {b.name: bool(b.saved) for b in wiz.bulbs})
         session = SessionWatcher(pause, cfg["auto_pause_session"], on_suspend=lambda: _restore(wiz))
-        _loop(cfg, Runtime(wiz, cap, pause, session, config_path, duration, on_color))
+        listener.set_enabled(cfg["audio_mode"] != "off")
+        _loop(cfg, Runtime(wiz, cap, pause, session, config_path, duration, on_color, listener))
     finally:
+        listener.close()
         if cap:
             cap.close()
         if wiz and cfg["restore_on_exit"]:
@@ -144,6 +149,7 @@ def _loop(cfg, rt):
                 wiz.reconfigure(cfg["bulbs"], cfg["bulb_retry_s"])
                 smoother.tau = cfg["tau"]
                 rt.session.auto_pause = cfg["auto_pause_session"]
+                rt.audio.set_enabled(cfg["audio_mode"] != "off")
                 if cfg["monitor"] != old_monitor:
                     cap.set_monitor(cfg["monitor"])
                 if cfg["pause_hotkey"] != old_hotkey:
@@ -186,6 +192,7 @@ def _loop(cfg, rt):
         now = time.monotonic()
         h, s, k, v = smoother.update(h, s, c, v, now - prev_t)
         rgb, dimming, white = compute_state(cfg, h, s, k, v)
+        rgb, dimming, white = audio.apply_effect(cfg, rgb, dimming, white, rt.audio.state())
         state = (*rgb, dimming, white)
         due = now - last_send_t >= 1 / cfg["send_hz"]
         changed = last_sent is None or max(abs(x - y) for x, y in zip(state, last_sent)) >= cfg["min_change"]
