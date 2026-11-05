@@ -41,5 +41,8 @@ def neutral_factor(colorfulness, low, high):
     return float(min(1.0, max(0.0, (colorfulness - low) / max(high - low, 1e-6))))
 
 
-def hs_to_rgb(h, s):
-    return tuple(round(c * 255) for c in colorsys.hsv_to_rgb(h % 1.0, s, 1.0))
+def hs_to_rgb(h, s, gamma=1.0):
+    """Teinte/saturation -> RGB 0-255. gamma > 1 linéarise les valeurs écran (sRGB) pour les LED :
+    sans cela, la composante faible (ex. le bleu d'un orange) est bien trop forte sur l'ampoule
+    et tire les jaunes/oranges vers le rose."""
+    return tuple(round(255 * c ** gamma) for c in colorsys.hsv_to_rgb(h % 1.0, s, 1.0))

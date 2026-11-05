@@ -110,6 +110,12 @@ Les défauts indiqués sont ceux du code (`src/lights/config.py`). Le `config.js
 - **Prise en compte** : à chaud
 - **Détails** : entre `neutral_low` et `neutral_high`, la couleur neutre et la teinte moyenne sont mélangées progressivement.
 
+### color_gamma
+- **Libellé** : Correction des couleurs
+- **Infobulle** : Convertit les couleurs écran en couleurs LED. Plus haut = couleurs plus saturées ; 1 = aucune correction.
+- **Type** : nombre (défaut 2.2)
+- **Détails** : l'écran encode ses valeurs avec un gamma alors que les LED sont linéaires ; sans correction, la composante faible (ex. le bleu d'un orange) est bien trop forte et les jaunes/oranges virent au rose.
+
 ### neutral_rgb
 - **Libellé** : Couleur neutre
 - **Infobulle** : Couleur utilisée quand l'image est noire, grise ou blanche. Choisis un blanc chaud ou un blanc pur.
@@ -124,7 +130,7 @@ Les défauts indiqués sont ceux du code (`src/lights/config.py`). Le `config.js
 - **Type** : booléen
 - **Défaut** : `false`
 - **Prise en compte** : à chaud
-- **Détails** : activé, la LED blanche chaude (canal `w`) remplace la couleur neutre, et `neutral_rgb` n'est plus utilisé. Entre image neutre et colorée, les LED RGB et la LED blanche sont mélangées progressivement. Nécessite une ampoule WiZ RGBW (couleur + blanc).
+- **Détails** : activé, la LED blanche chaude s'ajoute à `neutral_rgb` sur les images neutres, dosée par `dimming_max_white`. Nécessite une ampoule WiZ RGBW (couleur + blanc).
 
 ---
 
@@ -180,16 +186,16 @@ Les défauts indiqués sont ceux du code (`src/lights/config.py`). Le `config.js
 - **Défaut** : `100`
 - **Plage** : 10 à 100
 - **Prise en compte** : à chaud
-- **Détails** : plafond général. Avec `use_white_led`, il s'applique aux images colorées et le plafond passe progressivement de `dimming_max_white` (image neutre) à `dimming_max` (image colorée). Sans `use_white_led`, il s'applique à toutes les images.
+- **Détails** : plafond général de luminosité, pour toutes les images.
 
 ### dimming_max_white
-- **Libellé** : Luminosité maximale (blancs)
-- **Infobulle** : Plafond de luminosité pour les scènes blanches ou grises, en pourcentage. Les blancs éblouissent plus que les couleurs.
+- **Libellé** : Intensité de la LED blanche
+- **Infobulle** : Dose de LED blanche ajoutée sur les scènes blanches ou grises, en pourcentage. 0 = RGB seul.
 - **Type** : curseur (%)
 - **Défaut** : `60`
-- **Plage** : 10 à 100
+- **Plage** : 0 à 100
 - **Prise en compte** : à chaud
-- **Détails** : à même pourcentage, un blanc paraît bien plus lumineux qu'une couleur, car il allume toutes les LED. Baisser ce plafond adoucit les scènes claires et les menus blancs. Le monter donne plus d'amplitude sur les écrans neutres. Utilisé seulement si `use_white_led` est activé.
+- **Détails** : la LED blanche est très lumineuse, même au minimum ; elle ne fait donc que s'ajouter à la couleur neutre RGB. Gardez-la basse (0 à 20) pour une pièce sombre immersive. Utilisé seulement si `use_white_led` est activé.
 
 ### brightness_gain
 - **Libellé** : Gain de luminosité

@@ -70,10 +70,10 @@ class ComputeStateTest(unittest.TestCase):
         self.assertEqual(rgb, tuple(cfg["neutral_rgb"]))
         self.assertEqual((dimming, white), (cfg["dimming_max"], 0))
 
-    def test_white_led_cap_applies_with_white_led(self):
-        cfg = self.cfg(use_white_led=True, brightness_scales={"night": 1, "day": 1})
-        rgb, dimming, white = app.compute_state(cfg, 0.0, 0.0, 0.0, 1.0)
-        self.assertEqual((rgb, dimming, white), ((0, 0, 0), cfg["dimming_max_white"], 255))
+    def test_white_led_is_dosed_on_top_of_neutral_rgb(self):
+        cfg = self.cfg(use_white_led=True, dimming_max_white=20, brightness_scales={"night": 1, "day": 1})
+        rgb, dimming, white = app.compute_state(cfg, 0.0, 0.0, 0.0, 0.0)
+        self.assertEqual((rgb, dimming, white), (tuple(cfg["neutral_rgb"]), cfg["dimming_min_by_mode"]["night"], 51))
 
 
 class ConfigTest(unittest.TestCase):

@@ -19,10 +19,11 @@ DEFAULTS = {
     "neutral_low": 0.06,  # colorfulness sous laquelle l image est neutre (blanc chaud)
     "neutral_high": 0.14,  # colorfulness à partir de laquelle la couleur est pleine
     "neutral_rgb": [255, 255, 255],  # couleur des images neutres (ex. [255,169,87] pour un blanc chaud)
+    "color_gamma": 2.2,  # correction écran -> LED ; 1 = aucune, plus haut = couleurs plus saturées
     "use_white_led": False,  # True : images neutres via la LED blanche chaude ; False : tout en RGB
     "dimming_min_by_mode": {"night": 10, "day": 25},
     "dimming_max": 100,
-    "dimming_max_white": 60,  # plafond spécifique aux LED blanches (plus lumineuses)
+    "dimming_max_white": 10,  # dose (%) de LED blanche ajoutée sur les images neutres
     "brightness_mode": "night",  # "night" ou "day"
     "brightness_scales": {"night": 0.8, "day": 1.0},
     "dynamic_brightness": True,  # False : luminosité fixe (fixed_brightness)
@@ -55,6 +56,7 @@ def validate(cfg):
            f"brightness_mode '{mode}' absent de brightness_scales ou dimming_min_by_mode")
     _check(cfg["pause_mode"] in ("restore", "freeze"), "pause_mode doit valoir restore ou freeze")
     _check(isinstance(cfg["auto_pause_session"], bool), "auto_pause_session doit valoir true ou false")
+    _check(float(cfg["color_gamma"]) > 0, "color_gamma doit être > 0")
     _check(cfg["monitor"] in ("primary", "all"), "monitor doit valoir primary ou all")
     for key in ("send_hz", "capture_hz", "bulb_retry_s"):
         _check(float(cfg[key]) > 0, f"{key} doit être > 0")

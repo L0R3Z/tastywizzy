@@ -110,6 +110,12 @@ Defaults listed are those in the code (`src/lights/config.py`). The current `con
 - **Applied**: live
 - **Details**: between `neutral_low` and `neutral_high`, the neutral color and the average hue are blended progressively.
 
+### color_gamma
+- **Label**: Color correction
+- **Tooltip**: Converts screen colors to LED colors. Higher = more saturated colors; 1 = no correction.
+- **Type**: number (default 2.2)
+- **Details**: screen values are gamma-encoded but LEDs are linear, so without correction the weak channel (e.g. the blue in orange) is far too strong and yellows/oranges turn pink.
+
 ### neutral_rgb
 - **Label**: Neutral color
 - **Tooltip**: Color used when the image is black, gray or white. Pick a warm white or a pure white.
@@ -124,7 +130,7 @@ Defaults listed are those in the code (`src/lights/config.py`). The current `con
 - **Type**: boolean
 - **Default**: `false`
 - **Applied**: live
-- **Details**: when on, the warm white LED (`w` channel) replaces the neutral color, and `neutral_rgb` is no longer used. Between neutral and colorful images, the RGB LEDs and the white LED are blended progressively. Requires a WiZ RGBW bulb (color + white).
+- **Details**: when on, the warm white LED is added on top of `neutral_rgb` for neutral images, dosed by `dimming_max_white`. Requires a WiZ RGBW bulb (color + white).
 
 ---
 
@@ -180,16 +186,16 @@ Defaults listed are those in the code (`src/lights/config.py`). The current `con
 - **Default**: `100`
 - **Range**: 10 to 100
 - **Applied**: live
-- **Details**: general cap. With `use_white_led`, it applies to colorful images and the cap moves progressively from `dimming_max_white` (neutral image) to `dimming_max` (colorful image). Without `use_white_led`, it applies to all images.
+- **Details**: general brightness cap, for all images.
 
 ### dimming_max_white
-- **Label**: Maximum brightness (whites)
-- **Tooltip**: Brightness cap for white or gray scenes, as a percentage. Whites are more dazzling than colors.
+- **Label**: White LED intensity
+- **Tooltip**: How strongly the white LED is added on white or gray scenes, as a percentage. 0 = RGB only.
 - **Type**: slider (%)
 - **Default**: `60`
-- **Range**: 10 to 100
+- **Range**: 0 to 100
 - **Applied**: live
-- **Details**: at the same percentage, white looks much brighter than a color, because it lights all the LEDs. Lowering this cap softens bright scenes and white menus. Raising it gives more range on neutral screens. Only used if `use_white_led` is on.
+- **Details**: the white LED is very bright, even at minimum brightness, so it is only an addition to the RGB neutral color. Keep it low (0 to 20) for an immersive dark room. Only used if `use_white_led` is on.
 
 ### brightness_gain
 - **Label**: Brightness gain

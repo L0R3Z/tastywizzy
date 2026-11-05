@@ -167,6 +167,14 @@ class Wiz:
         for b in bulbs:
             b.saved = res.get(b.ip)
 
+    def resave_states(self):
+        """Remplace l'état d'origine par l'état actuel (appelé à la reprise, ampoules encore restaurées)."""
+        bulbs = [b for b in self.bulbs if b.online]
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
+            res = _ask(sock, [b.ip for b in bulbs], "getPilot", 1.0)
+        for b in bulbs:
+            b.saved = res.get(b.ip) or b.saved  # pas de réponse : on garde l'ancien
+
     def connect(self):
         """Localise les ampoules, sauvegarde leur état, puis relance la recherche des absentes en fond."""
         found = self._locate_all(self.bulbs, self.sock)

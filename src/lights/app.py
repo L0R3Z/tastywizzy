@@ -23,25 +23,20 @@ log = logging.getLogger(__name__)
 def compute_state(cfg, h, s, k, v):
     """Couleur lissée de l'écran -> (rgb, dimming, white) à envoyer aux ampoules."""
     kk = color.neutral_factor(k, cfg["neutral_low"], cfg["neutral_high"])
-    if cfg["use_white_led"]:
-        # image neutre -> LED blanche chaude, image colorée -> LED RGB, mélange continu
-        rgb = tuple(round(x * kk) for x in color.hs_to_rgb(h, s))
-        white = round(255 * (1 - kk))
-    else:
-        # couleur pleine si l'image est colorée, sinon RGB neutre (config), en continu
-        rgb = tuple(round(x + (y - x) * kk) for x, y in zip(cfg["neutral_rgb"], color.hs_to_rgb(h, s)))
-        white = 0
+    hue_rgb = color.hs_to_rgb(h, s, cfg["color_gamma"])
+    # couleur pleine si l'image est colorée, sinon RGB neutre (config), en continu
+    rgb = tuple(round(x + (y - x) * kk) for x, y in zip(cfg["neutral_rgb"], hue_rgb))
+    # LED blanche : simple appoint sur les images neutres, dosé par dimming_max_white (%).
+    # Elle ne remplace plus le RGB : seule, elle reste éblouissante même au dimming minimum.
+    white = round(255 * (1 - kk) * cfg["dimming_max_white"] / 100) if cfg["use_white_led"] else 0
     lo = cfg["dimming_min_by_mode"][cfg["brightness_mode"]]
     if cfg["dynamic_brightness"]:
-        cap_max = cfg["dimming_max"]
-        if cfg["use_white_led"]:  # plafond propre aux LED blanches, plus lumineuses
-            cap_max = cfg["dimming_max_white"] + (cap_max - cfg["dimming_max_white"]) * kk
         level = min(1.0, v * cfg["brightness_gain"]) ** cfg["brightness_gamma"]
         scale = cfg["brightness_scales"][cfg["brightness_mode"]]
-        dimming = max(lo, round(scale * (lo + (cap_max - lo) * level)))
+        dimming = max(lo, scale * (lo + (cfg["dimming_max"] - lo) * level))
     else:
-        dimming = round(cfg["fixed_brightness"])
-    return rgb, min(DIMMING_MAX, max(DIMMING_MIN, dimming)), white
+        dimming = cfg["fixed_brightness"]
+    return rgb, min(DIMMING_MAX, max(DIMMING_MIN, round(dimming))), white
 
 
 class ConfigWatcher:
@@ -140,6 +135,8 @@ def _loop(cfg, rt):
             if pause.paused:
                 log.info("Pause.")
             else:
+                if restored:  # l'utilisateur a pu régler les ampoules pendant la pause : nouvel état d'origine
+                    wiz.resave_states()
                 smoother, last_sent, restored = Smoother(cfg["tau"]), None, False
                 log.info("Reprise.")
         if pause.paused:
